@@ -1,7 +1,7 @@
 ## ENVI
 Golang library for managing configuration from environment variables
 
-## Example
+## Usage
 
 Basic example (in `examples` folder):
 
@@ -95,9 +95,7 @@ and `0` for `int`s.
 
 By default, slice types will split the environment value on `,`; you can change this behavior by setting the `envSeparator` tag.
 
-## Required fields
-
-The `env` tag option `required` (e.g., `env:"MyKey,required"`) can be added
+The `env` tag option `required` for example `env:"MyKey,required"` can be added
 to ensure that some environment variable is set.
 
 ## TODO
