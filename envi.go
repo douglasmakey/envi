@@ -16,8 +16,6 @@ var (
 	TagOptionNotSupported = errors.New("tag option is not supported")
 	IsRequired            = errors.New("var env is required")
 	InvalidMapItem        = errors.New("invalid map item")
-	ValueIsEmpty          = errors.New("value is empty in func change value")
-	FieldNotExists        = errors.New("field not exists")
 )
 
 const (
@@ -28,7 +26,7 @@ const (
 	Required = "required"
 )
 
-// Handler error
+// EnvError struct define to error
 type EnvError struct {
 	KeyName   string
 	FieldType string
@@ -40,13 +38,8 @@ func (e *EnvError) Error() string {
 	return fmt.Sprintf("Key[%s] of type %s, Value: %s - Error: %s", e.KeyName, e.FieldType, e.Value, e.Err.Error())
 }
 
-// This is copy of environments
-var copyEnv interface{}
-
-// Public functions
+// Parse env to interface
 func Parse(val interface{}) error {
-	// Copy Environments
-	copyEnv = val
 
 	ptrValue := reflect.ValueOf(val)
 	if ptrValue.Kind() != reflect.Ptr {
@@ -60,21 +53,7 @@ func Parse(val interface{}) error {
 	return do(refValue)
 }
 
-func ChangeValue(key string, value string) error {
-
-	ptrValue := reflect.ValueOf(copyEnv)
-	if ptrValue.Kind() != reflect.Ptr {
-		return ErrNotAPointer
-	}
-	refValue := ptrValue.Elem()
-	if refValue.Kind() != reflect.Struct {
-		return ErrNotAPointer
-	}
-
-	return doChange(refValue, key, value)
-}
-
-// Private functions
+// do set type and value for each env
 func do(val reflect.Value) error {
 
 	// Declare vars
@@ -112,44 +91,7 @@ func do(val reflect.Value) error {
 
 }
 
-func doChange(val reflect.Value, key string, value string) error {
-	// Declare vars
-	var err error
-	refType := val.Type()
-
-	if value == "" {
-		return &EnvError{
-			KeyName:   refType.Field(0).Name,
-			FieldType: refType.Field(0).Type.String(),
-			Value:     value,
-			Err:       ValueIsEmpty,
-		}
-	}
-
-	rValue := val.FieldByName(key)
-	if rValue.IsValid() {
-		separator := refType.Field(0).Tag.Get(EnvSeparator)
-		if err := setValue(rValue, value, separator); err != nil {
-			return &EnvError{
-				KeyName:   refType.Field(0).Name,
-				FieldType: refType.Field(0).Type.String(),
-				Value:     value,
-				Err:       err,
-			}
-		}
-
-	} else {
-		return &EnvError{
-			KeyName:   key,
-			FieldType: "nil",
-			Value:     value,
-			Err:       FieldNotExists,
-		}
-	}
-
-	return err
-}
-
+// getValue get value or default value of key
 func getValue(sf reflect.StructField) (string, error) {
 	// Declare vars
 	var (
@@ -181,11 +123,13 @@ func getValue(sf reflect.StructField) (string, error) {
 	return value, err
 }
 
+// parseKeyForOption parse options for key
 func parseKeyForOption(k string) (string, []string) {
 	opts := strings.Split(k, ",")
 	return opts[0], opts[1:]
 }
 
+// getValueOrDefault return default value of key
 func getValueOrDefault(k, defValue string) string {
 	// Retrieves the value of the environment variable named by the key.
 	// If the variable is present in the environment, return value
@@ -196,6 +140,7 @@ func getValueOrDefault(k, defValue string) string {
 	return defValue
 }
 
+// getRequired check if key is required, in case that key is required return error IsRequired
 func getRequired(k string) (string, error) {
 	// Retrieves the value of the environment variable named by the key.
 	// If the variable is present in the environment, return value and nil for error
@@ -205,6 +150,7 @@ func getRequired(k string) (string, error) {
 	return "", IsRequired
 }
 
+// setValue set value from env to key
 func setValue(field reflect.Value, value string, separator string) error {
 	refType := field.Type()
 

@@ -33,19 +33,4 @@ func main() {
 	}
 
 	fmt.Printf("%+v\n", env)
-	err = envi.ChangeValue("Intent", "33")
-	if err != nil {
-		//You can handle the errors as follows
-		if e, ok := err.(*envi.EnvError); ok {
-			switch e.Err {
-			case envi.ValueIsEmpty:
-				fmt.Println(err.Error())
-			case envi.FieldNotExists:
-				fmt.Println(err.Error())
-			}
-		}
-		fmt.Println(err)
-	}
-
-	fmt.Printf("%+v\n", env)
 }

@@ -6,16 +6,6 @@ import (
 	"testing"
 )
 
-type TestEnvironments struct {
-	SomeString    string            `env:"SOMESTRING"`
-	DbHost        string            `env:"DB_HOST" envDefault:"postgres://localhost:5432/db"`
-	Port          int               `env:"PORT"`
-	CodeCountries map[string]string `env:"COUNTRIES"`
-	Rate          float32           `env:"RATE"`
-	Numbers       []int             `env:"NUMBERS"`
-	NotNumbers    []int             `env:"NOTNUMBERS"`
-}
-
 func assertEqual(t *testing.T, a interface{}, b interface{}, message string) {
 	if a == b {
 		return
@@ -27,43 +17,160 @@ func assertEqual(t *testing.T, a interface{}, b interface{}, message string) {
 }
 
 func TestParse(t *testing.T) {
-	defer os.Clearenv()
+	t.Run("boolean", func(tt *testing.T) {
+		defer os.Clearenv()
 
-	os.Setenv("SOMESTRING", "ENVI")
-	os.Setenv("PORT", "8080")
-	os.Setenv("RATE", "0.5")
-	os.Setenv("COUNTRIES", "Chile:CL,Venezuela:VEN,Colombia:CO")
-	os.Setenv("NUMBERS", "1,2,3,4,5")
+		type TestEnvironments struct {
+			IsValid bool `env:"ISVALID"`
+			IsProd  bool `env:"ISPROD"`
+		}
 
-	testEnv := TestEnvironments{}
-	err := Parse(&testEnv)
-	if err != nil {
-		panic(fmt.Sprintf("%+v\n", err))
-	}
-	assertEqual(t, "ENVI", testEnv.SomeString, "")
-	assertEqual(t, 8080, testEnv.Port, "")
-	assertEqual(t, float32(0.5), testEnv.Rate, "")
-	assertEqual(t, "postgres://localhost:5432/db", testEnv.DbHost, "")
+		os.Setenv("ISVALID", "TRUE")
+		os.Setenv("ISPROD", "FALSE")
 
-	// Change data
-	ChangeValue("Rate", "0.8")
-	ChangeValue("Port", "2323")
-	assertEqual(t, float32(0.8), testEnv.Rate, "")
-	assertEqual(t, 2323, testEnv.Port, "")
+		testEnv := TestEnvironments{}
+		err := Parse(&testEnv)
+		if err != nil {
+			panic(fmt.Sprintf("%+v\n", err))
+		}
 
-	// Slice
-	var numbers = [5]int{1, 2, 3, 4, 5}
+		assertEqual(tt, true, testEnv.IsValid, "")
+		assertEqual(tt, false, testEnv.IsProd, "")
 
-	assertEqual(t, len(numbers), len(testEnv.Numbers), "")
-	assertEqual(t, numbers[0], testEnv.Numbers[0], "")
-	assertEqual(t, numbers[1], testEnv.Numbers[1], "")
+	})
 
-	// Compare map
-	if len(testEnv.CodeCountries) == 3 {
-		assertEqual(t, "CL", testEnv.CodeCountries["Chile"], "")
-		assertEqual(t, "VEN", testEnv.CodeCountries["Venezuela"], "")
-		assertEqual(t, "CO", testEnv.CodeCountries["Colombia"], "")
-	} else {
-		t.Errorf("expected %#v", map[string]string{"Chile": "CL", "Venezuela": "VEN", "Colombia": "CO"})
-	}
+	t.Run("string", func(tt *testing.T) {
+		defer os.Clearenv()
+
+		type TestEnvironments struct {
+			SomeString string `env:"SOMESTRING"`
+			Name       string `env:"NAME"`
+		}
+
+		os.Setenv("SOMESTRING", "GOLANG")
+		os.Setenv("NAME", "ENVI")
+
+		testEnv := TestEnvironments{}
+		err := Parse(&testEnv)
+		if err != nil {
+			panic(fmt.Sprintf("%+v\n", err))
+		}
+
+		assertEqual(tt, "GOLANG", testEnv.SomeString, "")
+		assertEqual(tt, "ENVI", testEnv.Name, "")
+	})
+
+	t.Run("int", func(tt *testing.T) {
+		defer os.Clearenv()
+
+		type TestEnvironments struct {
+			Port    int `env:"PORT"`
+			Version int `env:"VERSION"`
+		}
+
+		os.Setenv("PORT", "8080")
+		os.Setenv("VERSION", "1")
+
+		testEnv := TestEnvironments{}
+		err := Parse(&testEnv)
+		if err != nil {
+			panic(fmt.Sprintf("%+v\n", err))
+		}
+
+		assertEqual(tt, 8080, testEnv.Port, "")
+		assertEqual(tt, 1, testEnv.Version, "")
+	})
+
+	t.Run("float", func(tt *testing.T) {
+		defer os.Clearenv()
+
+		type TestEnvironments struct {
+			Rate    float32 `env:"RATE"`
+			RateTwo float32 `env:"RATETWO"`
+		}
+
+		os.Setenv("RATE", "0.5")
+		os.Setenv("RATETWO", "1.0")
+
+		testEnv := TestEnvironments{}
+		err := Parse(&testEnv)
+		if err != nil {
+			panic(fmt.Sprintf("%+v\n", err))
+		}
+
+		assertEqual(tt, float32(0.5), testEnv.Rate, "")
+		assertEqual(tt, float32(1.0), testEnv.RateTwo, "")
+	})
+
+	t.Run("map", func(tt *testing.T) {
+		defer os.Clearenv()
+
+		type TestEnvironments struct {
+			CodeCountries map[string]string `env:"COUNTRIES"`
+		}
+
+		os.Setenv("COUNTRIES", "Chile:CL,Venezuela:VEN,Colombia:CO")
+
+		testEnv := TestEnvironments{}
+		err := Parse(&testEnv)
+		if err != nil {
+			panic(fmt.Sprintf("%+v\n", err))
+		}
+
+		// Compare map
+		if len(testEnv.CodeCountries) == 3 {
+			assertEqual(tt, "CL", testEnv.CodeCountries["Chile"], "")
+			assertEqual(tt, "VEN", testEnv.CodeCountries["Venezuela"], "")
+			assertEqual(tt, "CO", testEnv.CodeCountries["Colombia"], "")
+		} else {
+			tt.Errorf("expected %#v", map[string]string{"Chile": "CL", "Venezuela": "VEN", "Colombia": "CO"})
+		}
+	})
+
+	t.Run("slice", func(tt *testing.T) {
+		defer os.Clearenv()
+
+		type TestEnvironments struct {
+			Numbers []int `env:"NUMBERS"`
+		}
+
+		os.Setenv("NUMBERS", "1,2,3,4,5")
+
+		testEnv := TestEnvironments{}
+		err := Parse(&testEnv)
+		if err != nil {
+			panic(fmt.Sprintf("%+v\n", err))
+		}
+
+		// Slice
+		var numbers = [5]int{1, 2, 3, 4, 5}
+
+		assertEqual(tt, len(numbers), len(testEnv.Numbers), "")
+		assertEqual(tt, numbers[0], testEnv.Numbers[0], "")
+		assertEqual(tt, numbers[1], testEnv.Numbers[1], "")
+	})
+
+	t.Run("error not a pointer", func(tt *testing.T) {
+		type TestEnvironments struct {
+			Numbers []int `env:"NUMBERS"`
+		}
+
+		testEnv := TestEnvironments{}
+		err := Parse(testEnv)
+		assertEqual(tt, ErrNotAPointer, err, "")
+
+	})
+
+	t.Run("error env is required", func(tt *testing.T) {
+		type TestEnvRequired struct {
+			IsProd bool `env:"PROD,required"`
+		}
+
+		testEnv := TestEnvRequired{}
+		err := Parse(&testEnv)
+
+		if err == nil {
+			tt.Error("expected error IsRequired")
+		}
+	})
 }
