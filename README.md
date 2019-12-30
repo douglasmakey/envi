@@ -36,7 +36,7 @@ func main() {
                 panic(e.Error())
             }
         }
-        
+
         fmt.Println(err)
 	}
 
@@ -72,16 +72,16 @@ This library has support for the following types:
 * `[]float64`
 
 
-You can set the `envDefault` tag for something, this value will be used in the
+You can use the tag `envDefault` to add some default value, this value will be used in the
 case of absence of it in the environment. If you don't do that AND the
 environment variable is also not set, the zero-value
 of the type will be used: empty for `string`s, `false` for `bool`s
 and `0` for `int`s.
 
-By default, slice types will split the environment value on `,`; you can change this behavior by setting the `envSeparator` tag.
+By default, the values on slices type will be splitted by `,`; you can change this behavior by setting the `envSeparator` tag.
 
 The `env` tag option `required` for example `env:"MyKey,required"` can be added
-to ensure that some environment variable is set.
+to ensure that some critical environment variable is set.
 
 ## TODO
 - Implement errors handler

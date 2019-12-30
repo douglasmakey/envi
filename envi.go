@@ -11,19 +11,16 @@ import (
 )
 
 var (
-	//Errors
-	ErrNotAPointer        = errors.New("expected a pointer")
-	TagOptionNotSupported = errors.New("tag option is not supported")
-	IsRequired            = errors.New("var env is required")
-	InvalidMapItem        = errors.New("invalid map item")
+	// ErrIsRequired env is required
+	ErrIsRequired            = errors.New("env is required")
+	errNotAPointer           = errors.New("expected a pointer")
+	errTagOptionNotSupported = errors.New("tag option is not supported")
+	errInvalidMapItem        = errors.New("invalid map item")
 )
 
 const (
-	// Keys
-	EnvSeparator = "envSeparator"
-
-	// Options Support
-	Required = "required"
+	envSeparator = "envSeparator"
+	required     = "required"
 )
 
 // EnvError struct define to error
@@ -38,16 +35,15 @@ func (e *EnvError) Error() string {
 	return fmt.Sprintf("Key[%s] of type %s, Value: %s - Error: %s", e.KeyName, e.FieldType, e.Value, e.Err.Error())
 }
 
-// Parse env to interface
+// Parse env using reflect
 func Parse(val interface{}) error {
-
 	ptrValue := reflect.ValueOf(val)
 	if ptrValue.Kind() != reflect.Ptr {
-		return ErrNotAPointer
+		return errNotAPointer
 	}
 	refValue := ptrValue.Elem()
 	if refValue.Kind() != reflect.Struct {
-		return ErrNotAPointer
+		return errNotAPointer
 	}
 
 	return do(refValue)
@@ -55,8 +51,6 @@ func Parse(val interface{}) error {
 
 // do set type and value for each env
 func do(val reflect.Value) error {
-
-	// Declare vars
 	var err error
 	refType := val.Type()
 
@@ -76,7 +70,7 @@ func do(val reflect.Value) error {
 		if value == "" {
 			continue
 		}
-		separator := refType.Field(i).Tag.Get(EnvSeparator)
+		separator := refType.Field(i).Tag.Get(envSeparator)
 		if err := setValue(val.Field(i), value, separator); err != nil {
 			return &EnvError{
 				KeyName:   refType.Field(i).Name,
@@ -93,7 +87,6 @@ func do(val reflect.Value) error {
 
 // getValue get value or default value of key
 func getValue(sf reflect.StructField) (string, error) {
-	// Declare vars
 	var (
 		value string
 		err   error
@@ -112,10 +105,10 @@ func getValue(sf reflect.StructField) (string, error) {
 			switch option {
 			case "":
 				break
-			case Required:
+			case required:
 				value, err = getRequired(key)
 			default:
-				err = TagOptionNotSupported
+				err = errTagOptionNotSupported
 			}
 		}
 	}
@@ -123,13 +116,11 @@ func getValue(sf reflect.StructField) (string, error) {
 	return value, err
 }
 
-// parseKeyForOption parse options for key
 func parseKeyForOption(k string) (string, []string) {
 	opts := strings.Split(k, ",")
 	return opts[0], opts[1:]
 }
 
-// getValueOrDefault return default value of key
 func getValueOrDefault(k, defValue string) string {
 	// Retrieves the value of the environment variable named by the key.
 	// If the variable is present in the environment, return value
@@ -140,17 +131,15 @@ func getValueOrDefault(k, defValue string) string {
 	return defValue
 }
 
-// getRequired check if key is required, in case that key is required return error IsRequired
 func getRequired(k string) (string, error) {
 	// Retrieves the value of the environment variable named by the key.
 	// If the variable is present in the environment, return value and nil for error
 	if value, ok := os.LookupEnv(k); ok {
 		return value, nil
 	}
-	return "", IsRequired
+	return "", ErrIsRequired
 }
 
-// setValue set value from env to key
 func setValue(field reflect.Value, value string, separator string) error {
 	refType := field.Type()
 
@@ -188,18 +177,18 @@ func setValue(field reflect.Value, value string, separator string) error {
 			return err
 		}
 		field.SetUint(val)
-	case reflect.Bool:
-		val, err := strconv.ParseBool(value)
-		if err != nil {
-			return err
-		}
-		field.SetBool(val)
 	case reflect.Float32, reflect.Float64:
 		val, err := strconv.ParseFloat(value, refType.Bits())
 		if err != nil {
 			return err
 		}
 		field.SetFloat(val)
+	case reflect.Bool:
+		val, err := strconv.ParseBool(value)
+		if err != nil {
+			return err
+		}
+		field.SetBool(val)
 	case reflect.Slice:
 		// Validate separator and set default
 		if separator == "" {
@@ -208,8 +197,7 @@ func setValue(field reflect.Value, value string, separator string) error {
 		values := strings.Split(value, separator)
 		newSlice := reflect.MakeSlice(refType, len(values), len(values))
 		for i, val := range values {
-			err := setValue(newSlice.Index(i), val, "")
-			if err != nil {
+			if err := setValue(newSlice.Index(i), val, ""); err != nil {
 				return err
 			}
 		}
@@ -221,16 +209,15 @@ func setValue(field reflect.Value, value string, separator string) error {
 			for _, pair := range pairs {
 				kPair := strings.Split(pair, ":")
 				if len(kPair) != 2 {
-					return InvalidMapItem
+					return errInvalidMapItem
 				}
 				k := reflect.New(refType.Key()).Elem()
-				err := setValue(k, kPair[0], "")
-				if err != nil {
+				if err := setValue(k, kPair[0], ""); err != nil {
 					return err
 				}
+
 				v := reflect.New(refType.Elem()).Elem()
-				err = setValue(v, kPair[1], "")
-				if err != nil {
+				if err := setValue(v, kPair[1], ""); err != nil {
 					return err
 				}
 				newMap.SetMapIndex(k, v)

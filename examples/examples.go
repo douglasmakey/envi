@@ -21,12 +21,11 @@ func main() {
 		// You can handle the errors as follows
 		if e, ok := err.(*envi.EnvError); ok {
 			switch e.Err {
-			case envi.IsRequired:
+			case envi.ErrIsRequired:
 				// You can get info details using
 				// e.KeyName --> Name of key
 				// e.Value --> Value
 				panic(e.Error())
-
 			}
 		}
 		fmt.Println(err)
